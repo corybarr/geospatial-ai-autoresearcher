@@ -1,0 +1,87 @@
+.ion-assets-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(20, 22, 30, 0.85);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #e8eaf0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  min-width: 180px;
+  user-select: none;
+  z-index: 10;
+}
+
+.ion-assets-panel__header {
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(232, 234, 240, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ion-assets-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.ion-assets-panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  gap: 24px;
+}
+
+.ion-assets-panel__label {
+  color: #c8cad4;
+}
+
+.ion-assets-panel__toggle {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.ion-assets-panel__toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.ion-assets-panel__toggle-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9px;
+  transition: background 0.2s;
+}
+
+.ion-assets-panel__toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.ion-assets-panel__toggle input:checked + .ion-assets-panel__toggle-track {
+  background: #4c9de8;
+}
+
+.ion-assets-panel__toggle input:checked + .ion-assets-panel__toggle-track::after {
+  transform: translateX(14px);
+}
