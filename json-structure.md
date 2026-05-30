@@ -1,6 +1,6 @@
-# Geospatial AI Autoresearcher — JSON Structure Draft
+# Geospatial AI Autoresearcher — JSON Structure
 
-This draft locks the core structured data types for the autoresearch loop before more implementation work. Each type exists to turn messy retrieval and synthesis into stable machine-readable records that can be ranked, displayed, and revised without brittle text parsing.
+This document locks the core structured data types for the autoresearch loop before more implementation work. These types turn messy retrieval and synthesis into stable machine-readable records that can be ranked, displayed, and revised without brittle text parsing.
 
 ## 1) `SourceCandidate`
 
@@ -95,28 +95,11 @@ This is the ranking contract that makes prioritization explicit, reviewable, and
 }
 ```
 
-## 5) `ResearchGap`
-
-**Why this structure is needed:**
-This gives the autoresearch loop a clean way to represent missing coverage, conflicts, or weak evidence so the second pass can be intentional instead of vague.
-
-```json
-{
-  "id": "string",
-  "gap_type": "missing_source|weak_evidence|conflict|outdated|coverage_gap",
-  "description": "string",
-  "related_record_ids": ["string"],
-  "recommended_followup_queries": ["string"],
-  "priority": 0.0
-}
-```
-
-## Suggested implementation order
+## Implementation order
 1. `SourceCandidate`
 2. `ResearchRecord`
 3. `ExperimentCandidate`
 4. `ExperimentScore`
-5. `ResearchGap`
 
 ## Current recommendation
 Start implementation with `SourceCandidate` and `ResearchRecord` only. That gives us a clean retrieval-to-extraction contract before we wire experiment generation and ranking.
