@@ -23,7 +23,7 @@ Geospatial AI Autoresearcher is an autoresearch system that ingests frontier geo
 - Script draft below
 
 ### Please provide a link to your code on Github:
-- **Current best draft:** <https://github.com/corybarr/geospatial-ai-researcher>
+- **Current best draft:** `git@github.com:corybarr/geospatial-ai-autoresearcher.git`
 
 ### Did you use Raindrop Workshop and would like to be considered for the track prize?
 Draft answer options:
