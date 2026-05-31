@@ -149,10 +149,12 @@ function CesiumViewer() {
   const imageryLayersRef = useRef<Partial<Record<ImageryKey, ImageryLayer>>>({})
   const [visibility, setVisibility] = useState<Visibility>(DEFAULT_VISIBILITY)
   const visibilityRef = useRef(visibility)
-  const [bandConfig, setBandConfig] = useState<BandConfig>(DEFAULT_BAND_CONFIG)
+  const [bandConfig] = useState<BandConfig>(DEFAULT_BAND_CONFIG)
+  const bandConfigRef = useRef(bandConfig)
 
   useEffect(() => {
     visibilityRef.current = visibility
+    bandConfigRef.current = bandConfig
     const viewer = viewerRef.current
     if (viewer) {
       viewer.scene.globe.show = !visibility.googlePhotorealistic
@@ -191,6 +193,10 @@ function CesiumViewer() {
     })
     viewer.imageryLayers.removeAll()
     viewerRef.current = viewer
+
+    if (visibilityRef.current.elevationBand) {
+      viewer.scene.globe.material = buildElevationBandMaterial(viewer.scene, bandConfigRef.current)
+    }
 
     let disposed = false
 
@@ -242,11 +248,11 @@ function CesiumViewer() {
   const toggle = (key: keyof Visibility) =>
     setVisibility((prev) => ({ ...prev, [key]: !prev[key] }))
 
-  const setBand = (key: keyof BandConfig, value: number | boolean) =>
-    setBandConfig((prev) => ({ ...prev, [key]: value }))
+  // const setBand = (key: keyof BandConfig, value: number | boolean) =>
+  //   setBandConfig((prev) => ({ ...prev, [key]: value }))
 
   const imageryDisabled = visibility.googlePhotorealistic
-  const bandDisabled = !visibility.elevationBand
+  // const bandDisabled = !visibility.elevationBand
 
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
@@ -255,6 +261,7 @@ function CesiumViewer() {
       <div className="ion-assets-panel">
         <div className="ion-assets-panel__header">Ion Assets</div>
         <ul className="ion-assets-panel__list">
+          {/* Globe Material section — hidden, restore to re-enable elevation band toggle
           <li className="ion-assets-panel__section">Globe Material</li>
           <li className="ion-assets-panel__item">
             <span className="ion-assets-panel__label">Elevation Band</span>
@@ -267,6 +274,7 @@ function CesiumViewer() {
               <span className="ion-assets-panel__toggle-track" />
             </label>
           </li>
+          */}
           <li className="ion-assets-panel__section">3D Tiles</li>
           <li className="ion-assets-panel__item">
             <span className="ion-assets-panel__label">Google Photorealistic</span>
@@ -313,6 +321,7 @@ function CesiumViewer() {
         </ul>
       </div>
 
+      {/* Band config panel — hidden, restore to re-enable elevation band controls
       <div className={`band-config-panel${bandDisabled ? ' band-config-panel--disabled' : ''}`}>
         <div className="band-config-panel__header">Elevation Bands</div>
         <div className="band-config-panel__row">
@@ -363,6 +372,7 @@ function CesiumViewer() {
           Reset
         </button>
       </div>
+      */}
     </div>
   )
 }
