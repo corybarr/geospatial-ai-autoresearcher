@@ -144,7 +144,7 @@ The frontend lives in the [`app/`](app/) directory. It's a Vite + React + TypeSc
 
 ### Setup
 
-1. **Get a Cesium ion token.** Ask Cory — he can provide a token for you. Alternatively, sign in at [ion.cesium.com](https://ion.cesium.com/), go to **Access Tokens**, and copy your default token (or create a new one).
+1. **Get a Cesium ion token.** Sign in at [ion.cesium.com](https://ion.cesium.com/), go to **Access Tokens**, and copy your default token (or create a new one).
 
 2. **Create your local env file**
 
