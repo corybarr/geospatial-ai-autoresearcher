@@ -202,10 +202,11 @@ function CesiumViewer() {
 
     void (async () => {
       viewer.camera.flyTo({
-        destination: Cartesian3.fromDegrees(-122.3953, 37.7786, 400),
+        destination: Cartesian3.fromDegrees(-122.430398, 37.772770, 559.0),
         orientation: {
-          heading: CesiumMath.toRadians(0.0),
-          pitch: CesiumMath.toRadians(-15.0),
+          heading: CesiumMath.toRadians(22.44),
+          pitch: CesiumMath.toRadians(-11.07),
+          roll: CesiumMath.toRadians(0.0),
         },
       })
 
@@ -243,6 +244,31 @@ function CesiumViewer() {
       imageryLayersRef.current = {}
       viewer.destroy()
     }
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'p') return
+      const viewer = viewerRef.current
+      if (!viewer) return
+      const { camera } = viewer
+      const carto = camera.positionCartographic
+      const lon = CesiumMath.toDegrees(carto.longitude)
+      const lat = CesiumMath.toDegrees(carto.latitude)
+      const height = carto.height
+      const heading = CesiumMath.toDegrees(camera.heading)
+      const pitch = CesiumMath.toDegrees(camera.pitch)
+      const roll = CesiumMath.toDegrees(camera.roll)
+      console.log('[camera] flyTo params:', {
+        destination: { longitude: lon, latitude: lat, height },
+        orientation: { heading, pitch, roll },
+      })
+      console.log(
+        `[camera] Cartesian3.fromDegrees(${lon.toFixed(6)}, ${lat.toFixed(6)}, ${height.toFixed(1)}), heading: ${heading.toFixed(2)}°, pitch: ${pitch.toFixed(2)}°, roll: ${roll.toFixed(2)}°`,
+      )
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   const toggle = (key: keyof Visibility) =>
