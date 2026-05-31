@@ -1,11 +1,14 @@
 import {
   Cartesian3,
   Cesium3DTileset,
+  Color,
+  createElevationBandMaterial,
   createOsmBuildingsAsync,
   ImageryLayer,
   Ion,
   IonImageryProvider,
   Math as CesiumMath,
+  Scene,
   Terrain,
   Viewer,
 } from 'cesium'
@@ -14,15 +17,110 @@ import { useEffect, useRef, useState } from 'react'
 import './ion-assets-panel.css'
 
 interface Visibility {
+  googlePhotorealistic: boolean
   osmBuildings: boolean
   bingAerial: boolean
   bingAerialLabels: boolean
   bingRoad: boolean
   earthAtNight: boolean
   sentinel2: boolean
+  elevationBand: boolean
 }
 
-type ImageryKey = Exclude<keyof Visibility, 'osmBuildings'>
+interface BandConfig {
+  gradient: boolean
+  band1Position: number
+  band2Position: number
+  band3Position: number
+  bandThickness: number
+  bandTransparency: number
+  backgroundTransparency: number
+}
+
+// SF Bay Area: sea level to ~1300m (Mt. Hamilton). Bands at low foothills, mid hills, peaks.
+const DEFAULT_BAND_CONFIG: BandConfig = {
+  gradient: false,
+  band1Position: 45,
+  band2Position: 103,
+  band3Position: 112,
+  bandThickness: 80,
+  bandTransparency: 0.5,
+  backgroundTransparency: 0.75,
+}
+
+function buildElevationBandMaterial(scene: Scene, cfg: BandConfig) {
+  const { gradient, band1Position, band2Position, band3Position, bandThickness, bandTransparency, backgroundTransparency } = cfg
+
+  const layers = []
+
+  const backgroundLayer = {
+    entries: [
+      { height: -50.0, color: new Color(0.0, 0.0, 0.2, backgroundTransparency) },
+      { height: 1300.0, color: new Color(1.0, 1.0, 1.0, backgroundTransparency) },
+      { height: 1500.0, color: new Color(1.0, 0.0, 0.0, backgroundTransparency) },
+    ],
+    extendDownwards: true,
+    extendUpwards: true,
+  }
+  layers.push(backgroundLayer)
+
+  const gridStartHeight = 0.0
+  const gridEndHeight = 1400.0
+  const gridCount = 50
+  for (let i = 0; i < gridCount; i++) {
+    const lerper = i / (gridCount - 1)
+    const heightBelow = CesiumMath.lerp(gridStartHeight, gridEndHeight, lerper)
+    const heightAbove = heightBelow + 5.0
+    const alpha = CesiumMath.lerp(0.2, 0.4, lerper) * backgroundTransparency
+    layers.push({
+      entries: [
+        { height: heightBelow, color: new Color(1.0, 1.0, 1.0, alpha) },
+        { height: heightAbove, color: new Color(1.0, 1.0, 1.0, alpha) },
+      ],
+    })
+  }
+
+  const antialias = Math.min(10.0, bandThickness * 0.1)
+
+  if (!gradient) {
+    layers.push({
+      entries: [
+        { height: band1Position - bandThickness * 0.5 - antialias, color: new Color(0.0, 0.0, 1.0, 0.0) },
+        { height: band1Position - bandThickness * 0.5, color: new Color(0.0, 0.0, 1.0, bandTransparency) },
+        { height: band1Position + bandThickness * 0.5, color: new Color(0.0, 0.0, 1.0, bandTransparency) },
+        { height: band1Position + bandThickness * 0.5 + antialias, color: new Color(0.0, 0.0, 1.0, 0.0) },
+      ],
+    })
+    layers.push({
+      entries: [
+        { height: band2Position - bandThickness * 0.5 - antialias, color: new Color(0.0, 1.0, 0.0, 0.0) },
+        { height: band2Position - bandThickness * 0.5, color: new Color(0.0, 1.0, 0.0, bandTransparency) },
+        { height: band2Position + bandThickness * 0.5, color: new Color(0.0, 1.0, 0.0, bandTransparency) },
+        { height: band2Position + bandThickness * 0.5 + antialias, color: new Color(0.0, 1.0, 0.0, 0.0) },
+      ],
+    })
+    layers.push({
+      entries: [
+        { height: band3Position - bandThickness * 0.5 - antialias, color: new Color(1.0, 0.0, 0.0, 0.0) },
+        { height: band3Position - bandThickness * 0.5, color: new Color(1.0, 0.0, 0.0, bandTransparency) },
+        { height: band3Position + bandThickness * 0.5, color: new Color(1.0, 0.0, 0.0, bandTransparency) },
+        { height: band3Position + bandThickness * 0.5 + antialias, color: new Color(1.0, 0.0, 0.0, 0.0) },
+      ],
+    })
+  } else {
+    layers.push({
+      entries: [
+        { height: band1Position - bandThickness * 0.5, color: new Color(0.0, 0.0, 1.0, bandTransparency) },
+        { height: band2Position, color: new Color(0.0, 1.0, 0.0, bandTransparency) },
+        { height: band3Position + bandThickness * 0.5, color: new Color(1.0, 0.0, 0.0, bandTransparency) },
+      ],
+    })
+  }
+
+  return createElevationBandMaterial({ scene, layers })
+}
+
+type ImageryKey = Exclude<keyof Visibility, 'osmBuildings' | 'googlePhotorealistic' | 'elevationBand'>
 
 const IMAGERY_ASSETS: { key: ImageryKey; id: number; label: string }[] = [
   { key: 'bingAerial', id: 2, label: 'Bing Maps Aerial' },
@@ -33,23 +131,38 @@ const IMAGERY_ASSETS: { key: ImageryKey; id: number; label: string }[] = [
 ]
 
 const DEFAULT_VISIBILITY: Visibility = {
+  googlePhotorealistic: false,
   osmBuildings: false,
   bingAerial: true,
   bingAerialLabels: false,
   bingRoad: false,
   earthAtNight: false,
   sentinel2: false,
+  elevationBand: true,
 }
 
 function CesiumViewer() {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const viewerRef = useRef<Viewer | null>(null)
+  const photorealisticRef = useRef<Cesium3DTileset | null>(null)
   const buildingsRef = useRef<Cesium3DTileset | null>(null)
   const imageryLayersRef = useRef<Partial<Record<ImageryKey, ImageryLayer>>>({})
   const [visibility, setVisibility] = useState<Visibility>(DEFAULT_VISIBILITY)
   const visibilityRef = useRef(visibility)
+  const [bandConfig, setBandConfig] = useState<BandConfig>(DEFAULT_BAND_CONFIG)
 
   useEffect(() => {
     visibilityRef.current = visibility
+    const viewer = viewerRef.current
+    if (viewer) {
+      viewer.scene.globe.show = !visibility.googlePhotorealistic
+      viewer.scene.globe.material = visibility.elevationBand
+        ? buildElevationBandMaterial(viewer.scene, bandConfig)
+        : undefined
+    }
+    if (photorealisticRef.current) {
+      photorealisticRef.current.show = visibility.googlePhotorealistic
+    }
     if (buildingsRef.current) {
       buildingsRef.current.show = visibility.osmBuildings
     }
@@ -57,7 +170,7 @@ function CesiumViewer() {
       const layer = imageryLayersRef.current[key]
       if (layer) layer.show = visibility[key]
     }
-  }, [visibility])
+  }, [visibility, bandConfig])
 
   useEffect(() => {
     const container = containerRef.current
@@ -77,17 +190,25 @@ function CesiumViewer() {
       terrain: Terrain.fromWorldTerrain(),
     })
     viewer.imageryLayers.removeAll()
+    viewerRef.current = viewer
 
     let disposed = false
 
     void (async () => {
       viewer.camera.flyTo({
-        destination: Cartesian3.fromDegrees(-122.4175, 37.655, 400),
+        destination: Cartesian3.fromDegrees(-122.3953, 37.7786, 400),
         orientation: {
           heading: CesiumMath.toRadians(0.0),
           pitch: CesiumMath.toRadians(-15.0),
         },
       })
+
+      const photorealistic = await Cesium3DTileset.fromIonAssetId(2275207)
+      if (!disposed) {
+        photorealistic.show = visibilityRef.current.googlePhotorealistic
+        viewer.scene.primitives.add(photorealistic)
+        photorealisticRef.current = photorealistic
+      }
 
       const buildings = await createOsmBuildingsAsync()
       if (!disposed) {
@@ -110,6 +231,8 @@ function CesiumViewer() {
 
     return () => {
       disposed = true
+      viewerRef.current = null
+      photorealisticRef.current = null
       buildingsRef.current = null
       imageryLayersRef.current = {}
       viewer.destroy()
@@ -119,13 +242,43 @@ function CesiumViewer() {
   const toggle = (key: keyof Visibility) =>
     setVisibility((prev) => ({ ...prev, [key]: !prev[key] }))
 
+  const setBand = (key: keyof BandConfig, value: number | boolean) =>
+    setBandConfig((prev) => ({ ...prev, [key]: value }))
+
+  const imageryDisabled = visibility.googlePhotorealistic
+  const bandDisabled = !visibility.elevationBand
+
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
       <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+
       <div className="ion-assets-panel">
         <div className="ion-assets-panel__header">Ion Assets</div>
         <ul className="ion-assets-panel__list">
+          <li className="ion-assets-panel__section">Globe Material</li>
+          <li className="ion-assets-panel__item">
+            <span className="ion-assets-panel__label">Elevation Band</span>
+            <label className="ion-assets-panel__toggle">
+              <input
+                type="checkbox"
+                checked={visibility.elevationBand}
+                onChange={() => toggle('elevationBand')}
+              />
+              <span className="ion-assets-panel__toggle-track" />
+            </label>
+          </li>
           <li className="ion-assets-panel__section">3D Tiles</li>
+          <li className="ion-assets-panel__item">
+            <span className="ion-assets-panel__label">Google Photorealistic</span>
+            <label className="ion-assets-panel__toggle">
+              <input
+                type="checkbox"
+                checked={visibility.googlePhotorealistic}
+                onChange={() => toggle('googlePhotorealistic')}
+              />
+              <span className="ion-assets-panel__toggle-track" />
+            </label>
+          </li>
           <li className="ion-assets-panel__item">
             <span className="ion-assets-panel__label">OSM Buildings</span>
             <label className="ion-assets-panel__toggle">
@@ -137,21 +290,78 @@ function CesiumViewer() {
               <span className="ion-assets-panel__toggle-track" />
             </label>
           </li>
-          <li className="ion-assets-panel__section">Imagery</li>
+          <li className={`ion-assets-panel__section${imageryDisabled ? ' ion-assets-panel__section--disabled' : ''}`}>
+            Imagery
+          </li>
           {IMAGERY_ASSETS.map(({ key, label }) => (
-            <li key={key} className="ion-assets-panel__item">
+            <li
+              key={key}
+              className={`ion-assets-panel__item${imageryDisabled ? ' ion-assets-panel__item--disabled' : ''}`}
+            >
               <span className="ion-assets-panel__label">{label}</span>
               <label className="ion-assets-panel__toggle">
                 <input
                   type="checkbox"
                   checked={visibility[key]}
                   onChange={() => toggle(key)}
+                  disabled={imageryDisabled}
                 />
                 <span className="ion-assets-panel__toggle-track" />
               </label>
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className={`band-config-panel${bandDisabled ? ' band-config-panel--disabled' : ''}`}>
+        <div className="band-config-panel__header">Elevation Bands</div>
+        <div className="band-config-panel__row">
+          <label className="band-config-panel__label">Gradient</label>
+          <label className="ion-assets-panel__toggle">
+            <input
+              type="checkbox"
+              checked={bandConfig.gradient}
+              onChange={() => setBand('gradient', !bandConfig.gradient)}
+              disabled={bandDisabled}
+            />
+            <span className="ion-assets-panel__toggle-track" />
+          </label>
+        </div>
+        {(
+          [
+            { key: 'band1Position', label: 'Band 1 (blue)', min: 0, max: 1400, color: '#4af' },
+            { key: 'band2Position', label: 'Band 2 (green)', min: 0, max: 1400, color: '#4d4' },
+            { key: 'band3Position', label: 'Band 3 (red)', min: 0, max: 1400, color: '#f55' },
+            { key: 'bandThickness', label: 'Thickness', min: 10, max: 300, color: undefined },
+            { key: 'bandTransparency', label: 'Band opacity', min: 0, max: 1, step: 0.05, color: undefined },
+            { key: 'backgroundTransparency', label: 'BG opacity', min: 0, max: 1, step: 0.05, color: undefined },
+          ] as { key: keyof BandConfig; label: string; min: number; max: number; step?: number; color?: string }[]
+        ).map(({ key, label, min, max, step = 1, color }) => (
+          <div key={key} className="band-config-panel__row">
+            <label className="band-config-panel__label" style={color ? { color } : undefined}>{label}</label>
+            <input
+              type="range"
+              className="band-config-panel__slider"
+              min={min}
+              max={max}
+              step={step}
+              value={bandConfig[key] as number}
+              onChange={(e) => setBand(key, parseFloat(e.target.value))}
+              disabled={bandDisabled}
+            />
+            <span className="band-config-panel__value">
+              {step < 1 ? (bandConfig[key] as number).toFixed(2) : Math.round(bandConfig[key] as number)}
+              {max <= 1 ? '' : 'm'}
+            </span>
+          </div>
+        ))}
+        <button
+          className="band-config-panel__reset"
+          onClick={() => setBandConfig(DEFAULT_BAND_CONFIG)}
+          disabled={bandDisabled}
+        >
+          Reset
+        </button>
       </div>
     </div>
   )
