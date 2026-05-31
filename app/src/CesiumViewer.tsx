@@ -287,20 +287,6 @@ function CesiumViewer() {
       <div className="ion-assets-panel">
         <div className="ion-assets-panel__header">Ion Assets</div>
         <ul className="ion-assets-panel__list">
-          {/* Globe Material section — hidden, restore to re-enable elevation band toggle
-          <li className="ion-assets-panel__section">Globe Material</li>
-          <li className="ion-assets-panel__item">
-            <span className="ion-assets-panel__label">Elevation Band</span>
-            <label className="ion-assets-panel__toggle">
-              <input
-                type="checkbox"
-                checked={visibility.elevationBand}
-                onChange={() => toggle('elevationBand')}
-              />
-              <span className="ion-assets-panel__toggle-track" />
-            </label>
-          </li>
-          */}
           <li className="ion-assets-panel__section">3D Tiles</li>
           <li className="ion-assets-panel__item">
             <span className="ion-assets-panel__label">Google Photorealistic</span>
@@ -326,6 +312,17 @@ function CesiumViewer() {
           </li>
           <li className={`ion-assets-panel__section${imageryDisabled ? ' ion-assets-panel__section--disabled' : ''}`}>
             Imagery
+          </li>
+          <li className="ion-assets-panel__item">
+            <span className="ion-assets-panel__label">Autoresearched Local Temps</span>
+            <label className="ion-assets-panel__toggle">
+              <input
+                type="checkbox"
+                checked={visibility.elevationBand}
+                onChange={() => toggle('elevationBand')}
+              />
+              <span className="ion-assets-panel__toggle-track" />
+            </label>
           </li>
           {IMAGERY_ASSETS.map(({ key, label }) => (
             <li
