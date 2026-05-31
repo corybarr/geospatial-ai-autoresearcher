@@ -172,7 +172,7 @@ The frontend lives in the [`app/`](app/) directory. It's a Vite + React + TypeSc
    npm run dev
    ```
 
-   Open [http://localhost:5173](http://localhost:5173) in your browser. You should see a 3D globe flying to San Francisco with OSM buildings loaded.
+   Open [http://localhost:5173](http://localhost:5173) in your browser. You should see a 3D globe flying to San Francisco.
 
 ### Other commands
 
